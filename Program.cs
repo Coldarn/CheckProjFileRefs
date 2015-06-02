@@ -172,9 +172,11 @@ namespace CheckProjFileRefs
                 }
             }
 
-            // Corrects path casing issues by matching the case in the file system
+            // Corrects path casing issues by matching the case in the file system if possible,
+            // otherwise returns the given path unmodified.
             private static string CorrectFilePath(string path)
             {
+                path = Path.GetFullPath(path);
                 if (!File.Exists(path) && !Directory.Exists(path))
                     return path;
 
