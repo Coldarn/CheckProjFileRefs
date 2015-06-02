@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Xml.Linq;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace CheckProjFileRefs
 {
@@ -43,7 +44,7 @@ namespace CheckProjFileRefs
                 foreach (string file in Directory.EnumerateFiles(options.ProjectOrDirectoryPath, "*.csproj", SearchOption.AllDirectories))
                 {
                     foundAFile = true;
-                    scanner.Scan(file);
+                    ScanSingle(options, scanner, file);
                 }
 
                 if (!foundAFile)
@@ -51,8 +52,18 @@ namespace CheckProjFileRefs
             }
             else
             {
-                scanner.Scan(options.ProjectOrDirectoryPath);
+                ScanSingle(options, scanner, options.ProjectOrDirectoryPath);
             }
+        }
+
+        private static void ScanSingle(Options options, Scanner scanner, string path)
+        {
+            var ignorePatterns = new HashSet<string>(options.IgnorePatterns);
+            if (File.Exists(path + ".ignore"))
+                ignorePatterns.UnionWith(File.ReadAllLines(path + ".ignore")
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim()));
+            scanner.Scan(path, ignorePatterns);
         }
 
 
@@ -65,6 +76,8 @@ namespace CheckProjFileRefs
                 "None",
                 "Compile",
             };
+            private static readonly Regex DetectRegexRegex = new Regex("[!a-zA-Z0-9_/\\\\-]");
+
 
             private readonly TextWriter writer;
 
@@ -73,11 +86,16 @@ namespace CheckProjFileRefs
                 this.writer = writer;
             }
 
-            public void Scan(string projectFilePath)
+            public void Scan(string projectFilePath, HashSet<string> ignorePatterns)
             {
                 this.writer.WriteLine(projectFilePath);
                 if (Console.Out != this.writer)
                     Console.WriteLine(projectFilePath);
+
+                // Convert ignore patterns into regexes
+                Regex[] ignoreRes = ignorePatterns.Select(pattern =>
+                    DetectRegexRegex.IsMatch(pattern) ? new Regex(pattern) : new Regex(String.Format("^{0}$", pattern))
+                ).ToArray();
 
                 string projDir = Path.GetDirectoryName(projectFilePath);
                 HashSet<string> filesToFind = new HashSet<string>();
@@ -125,7 +143,9 @@ namespace CheckProjFileRefs
                         }
                         else
                         {
-                            notInProject.Add(childPath);
+                            // If the file shouldn't be ignored, mark it as missing from the project
+                            if (!ignoreRes.Any(re => re.IsMatch(childPath, projDir.Length)))
+                                notInProject.Add(childPath);
                         }
                     }
                 }
@@ -136,6 +156,11 @@ namespace CheckProjFileRefs
                     foreach (string path in notInProject)
                         this.writer.WriteLine("    {0}", path);
                 }
+
+                // Filter out any directories that should be ignored
+                suspectDirectories = new HashSet<string>(suspectDirectories.Where(dir =>
+                    !ignoreRes.Any(re => re.IsMatch(dir, projDir.Length))
+                ));
 
                 if (suspectDirectories.Count > 0)
                 {
@@ -199,8 +224,9 @@ namespace CheckProjFileRefs
         private class Options
         {
             public string ProjectOrDirectoryPath = Directory.GetCurrentDirectory();
-            public bool OutputToFile = false;
+            public bool OutputToFile = true;
             public bool DisplayHelp = false;
+            public HashSet<string> IgnorePatterns = new HashSet<string>();
 
             public Options(string[] args)
             {
@@ -221,6 +247,17 @@ namespace CheckProjFileRefs
                         case "--file":
                             this.OutputToFile = true;
                             break;
+                        case "-i":
+                        case "--ignore":
+                            if (i + 1 >= args.Length)
+                            {
+                                Console.WriteLine("Missing ignore pattern!\n");
+                                this.DisplayHelp = true;
+                                break;
+                            }
+                            i += 1;
+                            this.IgnorePatterns.Add(args[i]);
+                            break;
                         default:
                             if (i == args.Length - 1 && (Directory.Exists(args[i]) || File.Exists(args[i])))
                             {
@@ -235,12 +272,19 @@ namespace CheckProjFileRefs
 
                 if (this.DisplayHelp)
                 {
-                    Console.WriteLine(@"{0} [-f] [<path to project file or directory>]
+                    Console.WriteLine(@"{0} [-f] [-i <ignore pattern>] [<path to project file or directory>]
 
 Scans Visual Studio project files for missing, duplicate, or dead references.
 
-  -f      (Optional) Writes issues to file and opens it after scanning,
+  -f/file   (Optional) Writes issues to file and opens it after scanning,
           otherwise writes output to the console.
+
+  -i/ignore (Optional) Adds a path to ignore if missing. Ignore patterns can
+          be regexes, full file/folder names, or path substrings.
+
+          Patterns can also be saved on separate lines in a file adjacent to
+          the project file, with the name ""<ProjectName.extension>.ignore"",
+          i.e. ""Foo.csproj.ignore"".
 
   <path>  (Optional) Project file or directory to scan for issues. Scans the
           current working directory if absent.
