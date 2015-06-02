@@ -1,7 +1,7 @@
 # CheckProjFileRefs
 CheckProjFileRefs is a minimal, stand-alone, command line utility which scans Visual Studio project files for references that differ from the local file system. This is similar to the "Show All Files" feature in Solution Explorer, but can handle multiple complex project files in a single automated run. Additionally, it also identifies duplicate file references that are all too easy to acumulate during merges.
 
-The tool doesn't require Visual Studio to be present on the system to function, so is suitable for use on build servers or other headless environments.
+The tool doesn't require Visual Studio to be present on the system so is suitable for use on build servers or other headless environments.
 
 ## Example Output
 ```
