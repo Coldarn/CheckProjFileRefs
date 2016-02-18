@@ -233,6 +233,7 @@ namespace CheckProjFileRefs
                 if (args.Length < 1)
                     return;
 
+                this.OutputToFile = false;
                 for (int i = 0; i < args.Length; i += 1)
                 {
                     switch (args[i])
@@ -246,6 +247,10 @@ namespace CheckProjFileRefs
                         case "-f":
                         case "--file":
                             this.OutputToFile = true;
+                            break;
+                        case "-f-":
+                        case "--file-":
+                            this.OutputToFile = false;
                             break;
                         case "-i":
                         case "--ignore":
@@ -272,12 +277,14 @@ namespace CheckProjFileRefs
 
                 if (this.DisplayHelp)
                 {
-                    Console.WriteLine(@"{0} [-f] [-i <ignore pattern>] [<path to project file or directory>]
+                    Console.WriteLine(@"{0} [-f] [-i <ignore pattern>] [<path to project file or dir>]
 
 Scans Visual Studio project files for missing, duplicate, or dead references.
 
-  -f/file   (Optional) Writes issues to file and opens it after scanning,
-          otherwise writes output to the console.
+  -f[-]/file[-] (Optional) Writes issues to file and opens it after scanning,
+          otherwise writes output to the console. If includes a trailing
+          dash, disables file writing (useful to disable default file output
+          when running with no arguments).
 
   -i/ignore (Optional) Adds a path to ignore if missing. Ignore patterns can
           be regexes, full file/folder names, or path substrings.
