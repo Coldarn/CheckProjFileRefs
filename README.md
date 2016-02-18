@@ -3,6 +3,11 @@ CheckProjFileRefs is a minimal, stand-alone, command line utility which scans Vi
 
 The tool doesn't require Visual Studio to be present on the system so is suitable for use on build servers or other headless environments.
 
+## Usage
+Simply drop the .exe into a directory and double-click it to scan project files in that directory and below recursively. When it's done, the results will pop open in your default .txt file viewer for easy review. Simple!
+
+For automated or more precise use, you can also run it on the command line and choose specific project files to scan (pass any number of filenames) and paths to ignore (include -i before them). Usage on the command line also switches it to print results to the console, but you can switch back to file-output mode (with -f).
+
 ## Example Output
 ```
 D:\TFS_Data\Projects\Web8\Foo.Web\Foo.Web.csproj
