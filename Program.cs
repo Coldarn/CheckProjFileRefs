@@ -169,6 +169,11 @@ namespace CheckProjFileRefs
                         this.writer.WriteLine("    {0}", path);
                 }
 
+                // Remove entries from the "not in the file system" list if outside the project's directory
+                filesToFind.RemoveWhere(File.Exists);
+                filesToFind.RemoveWhere(Directory.Exists);
+
+                // Now, log any still remaining
                 if (filesToFind.Count > 0)
                 {
                     this.writer.WriteLine("\n  References not in the file system:");
